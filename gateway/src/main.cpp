@@ -3,17 +3,17 @@
 #include <WiFi.h>
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
+#include <LiquidCrystal_I2C.h>
 
 // Define pins and sensors
 #define RX (16)
 #define TX (17)
 #define LDR_PIN 34
 #define IR_PIN 13
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-// Define ir, led, ldr
-
-#define WIFI_SSID "pcyn"
-#define WIFI_PASSWORD "punch514114"
+#define WIFI_SSID "wrwwmt"
+#define WIFI_PASSWORD "1594873H"
 #define FIREBASE_API_KEY "AIzaSyAKPSmr1CdJpGhxSKOqkdeeQqbJJkvq1JY"
 #define DB_URL "https://embeddedproject-16af6-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
@@ -79,6 +79,12 @@ void retrieveDataFromSensorNode() {
 void setup() {
   Serial.begin(9600);
   Serial1.begin(9600, SERIAL_8N1, RX, TX);
+
+  lcd.init();
+  lcd.backlight(); // Turn on the backlight
+
+  lcd.setCursor(0, 0); // Set cursor to column 0, row 0
+  lcd.setCursor(0, 1); // Set cursor to column 0, row 1
 
   //wifi connection
   Serial.print("Connecting to wifi..");
@@ -150,7 +156,13 @@ void loop() {
 
       Serial.println("Student ID: " + student_id);
       Serial.println("Late: " + value);
+
+      // write to LCD
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print(student_id);
     }
     Serial.println("==============================================\n");
+
   }
 }
