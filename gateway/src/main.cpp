@@ -8,7 +8,7 @@
 #define RX (16)
 #define TX (17)
 #define LDR_PIN 34
-#define IR_PIN 2
+#define IR_PIN 13
 
 // Define ir, led, ldr
 
@@ -29,6 +29,7 @@ String tempString;
 float temperature = 0.0;
 String touchString;
 bool touchStatus = false;
+int IrData;
 
 void retrieveDataFromSensorNode() {
   if (Serial1.available()) {
@@ -110,7 +111,18 @@ void loop() {
     ldrData = analogRead(LDR_PIN);
     voltage = (float)analogReadMilliVolts(LDR_PIN)/1000;
 
+    IrData = digitalRead(IR_PIN);
+
     // sent data to database
+    // IR
+    if(Firebase.RTDB.setInt(&fbdo, "/Sensor/IR", IrData)){
+      Serial.println();
+      Serial.print(IrData);
+      Serial.println("(" + fbdo.dataType() + ")");
+    }else{
+      Serial.println("FAILED: " + fbdo.errorReason());
+    }
+
     // ldr
     if(Firebase.RTDB.setFloat(&fbdo, "/Sensor/LDR", ldrData)){
       Serial.println();
@@ -137,6 +149,8 @@ void loop() {
     }else{
       Serial.println("FAILED: " + fbdo.errorReason());
     }
+
+    // read data from firebase to esp32
 
   }
 }
