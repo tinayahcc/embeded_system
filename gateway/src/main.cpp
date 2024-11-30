@@ -23,13 +23,19 @@ FirebaseConfig config;
 
 unsigned long sendDataPreMillis = 0;
 bool signupOK = false;
+
+float prev_ldrData = 0.0;
+float prev_temperature = 0.0;
+bool prev_touchStatus = false;
+
 float ldrData = 0;
-float voltage = 0.0;
-String tempString;
 float temperature = 0.0;
-String touchString;
 bool touchStatus = false;
+
+String tempString;
+String touchString;
 int IrData;
+String IDValue;
 
 void retrieveDataFromSensorNode() {
   if (Serial1.available()) {
@@ -105,52 +111,46 @@ void setup() {
 void loop() {
   retrieveDataFromSensorNode();
 
-  if(Firebase.ready() && signupOK && (millis() - sendDataPreMillis > 5000 || sendDataPreMillis == 0)){
+  if(Firebase.ready() && signupOK && (millis() - sendDataPreMillis > 3000 || sendDataPreMillis == 0)){
     sendDataPreMillis = millis();
     //retrieveDataFromSensorNode();
     ldrData = analogRead(LDR_PIN);
-    voltage = (float)analogReadMilliVolts(LDR_PIN)/1000;
-
-    IrData = digitalRead(IR_PIN);
-
-    // sent data to database
-    // IR
-    if(Firebase.RTDB.setInt(&fbdo, "/Sensor/IR", IrData)){
-      Serial.println();
-      Serial.print(IrData);
-      Serial.println("(" + fbdo.dataType() + ")");
-    }else{
-      Serial.println("FAILED: " + fbdo.errorReason());
-    }
+    // IrData = digitalRead(IR_PIN);
 
     // ldr
-    if(Firebase.RTDB.setFloat(&fbdo, "/Sensor/LDR", ldrData)){
-      Serial.println();
-      Serial.print(ldrData);
-      Serial.println("(" + fbdo.dataType() + ")");
-    }else{
-      Serial.println("FAILED: " + fbdo.errorReason());
+    Serial.println("======= Firebase sensors update status =======");
+    if(abs(prev_ldrData - ldrData) > 300 && Firebase.RTDB.setFloat(&fbdo, "/Sensor/LDR", ldrData)){
+      prev_ldrData = ldrData;
+      Serial.println("Update LDR sensor to: " + String(ldrData) + " ( " + fbdo.dataType() + " ) ");
     }
-
     // temperature
-    if(Firebase.RTDB.setFloat(&fbdo, "/Sensor/Temperature", temperature)){
-      Serial.println();
-      Serial.print(temperature);
-      Serial.println("(" + fbdo.dataType() + ")");
-    }else{
-      Serial.println("FAILED: " + fbdo.errorReason());
+    if(abs(prev_temperature - temperature) > 2 &&  Firebase.RTDB.setFloat(&fbdo, "/Sensor/Temperature", temperature)){
+      prev_temperature = temperature;
+      Serial.println("Update Temperature sensor to: " + String(temperature) + " ( " + fbdo.dataType() + " ) ");
     }
-
     // touch
-    if(Firebase.RTDB.setBool(&fbdo, "/Sensor/Touched", touchStatus)){
-      Serial.println();
-      Serial.print(touchStatus);
-      Serial.println("(" + fbdo.dataType() + ")");
-    }else{
-      Serial.println("FAILED: " + fbdo.errorReason());
+    if(prev_touchStatus != touchStatus && Firebase.RTDB.setBool(&fbdo, "/Sensor/Touched", touchStatus)){
+      prev_touchStatus = touchStatus;
+      Serial.println("Update Touch sensor to: " + String(touchStatus) + " ( " + fbdo.dataType() + " ) ");
     }
 
+    Serial.println("============= Lastest Attendance =============");
     // read data from firebase to esp32
+    if(Firebase.RTDB.getJSON(&fbdo, "/attendance/")){
+      FirebaseJson json = fbdo.to<FirebaseJson>();
+      FirebaseJsonData jsonData;
+      String key, value;
+      String student_id;
+      bool is_late;
+      int type;
+      json.iteratorGet((int)json.iteratorBegin() - 2, type, key, value);
+      student_id = value;
+      json.iteratorGet((int)json.iteratorBegin() - 3, type, key, value);
+      is_late = (value == "false") ? false : true;
 
+      Serial.println("Student ID: " + student_id);
+      Serial.println("Late: " + value);
+    }
+    Serial.println("==============================================\n");
   }
 }
