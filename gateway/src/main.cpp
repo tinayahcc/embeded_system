@@ -25,30 +25,55 @@ unsigned long sendDataPreMillis = 0;
 bool signupOK = false;
 float ldrData = 0;
 float voltage = 0.0;
-
+String tempString;
+float temperature = 0.0;
+String touchString;
+bool touchStatus = false;
 
 void retrieveDataFromSensorNode() {
   if (Serial1.available()) {
     String data = Serial1.readStringUntil('\n');
     if (data.startsWith("[FROM SENSOR NODE]")) {
-      Serial.println(data);
-      String content = data.substring(data.indexOf(']')+1); // The actual content
+      //Serial.println(data);
+      //String content = data.substring(data.indexOf(']')+1); // The actual content
+
+      // temperature sensor
+      int tempStart = data.indexOf("Temperature: ") + 13;
+      int tempEnd = data.indexOf(" °C");
+      tempString = data.substring(tempStart, tempEnd);
+      temperature = tempString.toFloat();
+
+      // touch sensor
+      int touchStart = data.indexOf("Touch Status: ") + 14;
+      touchString = data.substring(touchStart);
+      touchString.trim(); // Remove unwanted spaces or newline characters
+
+      if (touchString.equals("Touched")) {
+        touchStatus = true;
+      } else if (touchString.equals("Not Touched")) {
+        touchStatus = false;
+      }
+
+      // Serial.println(temperature);
+      // Serial.print("Touch Status: ");
+      // Serial.println(touchString);
+      // Serial.println(touchStatus);
     }
   }
 }
 
-void transmitDataToSensorNode(String msg) {
-  String header = "[FROM GATEWAY NODE]";
-  Serial.println("Sending Data to Sensor Node with content: " + msg);
-  msg = header + msg;
-  Serial1.println(msg);
-}
+// void transmitDataToSensorNode(String msg) {
+//   String header = "[FROM GATEWAY NODE]";
+//   Serial.println("Sending Data to Sensor Node with content: " + msg);
+//   msg = header + msg;
+//   Serial1.println(msg);
+// }
 
 void setup() {
   Serial.begin(9600);
   Serial1.begin(9600, SERIAL_8N1, RX, TX);
 
-  // wifi connection
+  //wifi connection
   Serial.print("Connecting to wifi..");
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
@@ -59,7 +84,7 @@ void setup() {
   Serial.println(WiFi.localIP());
   Serial.println();
 
-  // Firebase
+  //Firebase
   config.api_key = FIREBASE_API_KEY;
   config.database_url = DB_URL;
   config.timeout.serverResponse = 10000;
@@ -77,11 +102,11 @@ void setup() {
 }
 
 void loop() {
-  //retrieveDataFromSensorNode();
+  retrieveDataFromSensorNode();
 
   if(Firebase.ready() && signupOK && (millis() - sendDataPreMillis > 5000 || sendDataPreMillis == 0)){
     sendDataPreMillis = millis();
-    retrieveDataFromSensorNode();
+    //retrieveDataFromSensorNode();
     ldrData = analogRead(LDR_PIN);
     voltage = (float)analogReadMilliVolts(LDR_PIN)/1000;
 
@@ -95,32 +120,23 @@ void loop() {
       Serial.println("FAILED: " + fbdo.errorReason());
     }
 
-    // voltage
-    // if(Firebase.RTDB.setFloat(&fbdo, "voltage", voltage)){
-    //   Serial.println();
-    //   Serial.print(voltage);
-    //   Serial.println("(" + fbdo.dataType() + ")");
-    // }else{
-    //   Serial.println("FAILED: " + fbdo.errorReason());
-    // }
-
     // temperature
-    // if(Firebase.RTDB.setFloat(&fbdo, "temperature", temperature)){
-    //   Serial.println();
-    //   Serial.print(temperature);
-    //   Serial.println("(" + fbdo.dataType() + ")");
-    // }else{
-    //   Serial.println("FAILED: " + fbdo.errorReason());
-    // }
+    if(Firebase.RTDB.setFloat(&fbdo, "/Sensor/Temperature", temperature)){
+      Serial.println();
+      Serial.print(temperature);
+      Serial.println("(" + fbdo.dataType() + ")");
+    }else{
+      Serial.println("FAILED: " + fbdo.errorReason());
+    }
 
     // touch
-    // if(Firebase.RTDB.setBool(&fbdo, "touched", touched)){
-    //   Serial.println();
-    //   Serial.print(touched);
-    //   Serial.println("(" + fbdo.dataType() + ")");
-    // }else{
-    //   Serial.println("FAILED: " + fbdo.errorReason());
-    // }
+    if(Firebase.RTDB.setBool(&fbdo, "/Sensor/Touched", touchStatus)){
+      Serial.println();
+      Serial.print(touchStatus);
+      Serial.println("(" + fbdo.dataType() + ")");
+    }else{
+      Serial.println("FAILED: " + fbdo.errorReason());
+    }
 
   }
 }
