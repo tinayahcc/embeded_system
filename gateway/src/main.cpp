@@ -27,6 +27,7 @@ bool signupOK = false;
 float prev_ldrData = 0.0;
 float prev_temperature = 0.0;
 bool prev_touchStatus = false;
+int prev_IrData = 1;
 
 float ldrData = 0;
 float temperature = 0.0;
@@ -133,15 +134,18 @@ void setup() {
 void loop() {
   retrieveDataFromSensorNode();
 
-  // lcd.clear();
-  // lcd.setCursor(0,0);
-  // lcd.print("Hello World");
-
   if(Firebase.ready() && signupOK && (millis() - sendDataPreMillis > 5000 || sendDataPreMillis == 0)){
     sendDataPreMillis = millis();
     //retrieveDataFromSensorNode();
     ldrData = analogRead(LDR_PIN);
-    // IrData = digitalRead(IR_PIN);
+    IrData = digitalRead(IR_PIN);
+
+    // IR
+    Serial.println("======= Firebase sensors update status =======");
+    if(prev_IrData != IrData && Firebase.RTDB.setInt(&fbdo, "/Sensor/IR", IrData)){
+      prev_IrData= IrData;
+      Serial.println("Update IR sensor to: " + String(IrData) + " ( " + fbdo.dataType() + " ) ");
+    }
 
     // ldr
     Serial.println("======= Firebase sensors update status =======");
