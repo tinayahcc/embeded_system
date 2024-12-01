@@ -10,10 +10,10 @@
 #define TX (17)
 #define LDR_PIN 34
 #define IR_PIN 13
+#define RED_PIN 5
+#define GREEN_PIN 18
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-#define WIFI_SSID "wrwwmt"
-#define WIFI_PASSWORD "1594873H"
 #define FIREBASE_API_KEY "AIzaSyAKPSmr1CdJpGhxSKOqkdeeQqbJJkvq1JY"
 #define DB_URL "https://embeddedproject-16af6-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
@@ -86,7 +86,23 @@ void setup() {
   lcd.setCursor(0, 0); // Set cursor to column 0, row 0
   lcd.setCursor(0, 1); // Set cursor to column 0, row 1
 
-  //wifi connection
+  pinMode(RED_PIN, OUTPUT);
+  pinMode(GREEN_PIN, OUTPUT);
+
+  // Initialize LED to off
+  digitalWrite(RED_PIN, LOW);
+  digitalWrite(GREEN_PIN, LOW);
+
+  int wifi_optiion = 1;
+  String Wifi_SSIDs[2] = {"wrwwmt", "pcyn"};
+  String Wifi_Pass[2] = {"1594873H", "punch514114"};
+
+  String WIFI_SSID = Wifi_SSIDs[wifi_optiion];
+  String WIFI_PASSWORD = Wifi_Pass[wifi_optiion];
+  // String WIFI_SSID = "hrnph";
+  // String WIFI_PASSWORD = "00000000";
+
+  // wifi connection
   Serial.print("Connecting to wifi..");
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
@@ -117,7 +133,11 @@ void setup() {
 void loop() {
   retrieveDataFromSensorNode();
 
-  if(Firebase.ready() && signupOK && (millis() - sendDataPreMillis > 3000 || sendDataPreMillis == 0)){
+  // lcd.clear();
+  // lcd.setCursor(0,0);
+  // lcd.print("Hello World");
+
+  if(Firebase.ready() && signupOK && (millis() - sendDataPreMillis > 5000 || sendDataPreMillis == 0)){
     sendDataPreMillis = millis();
     //retrieveDataFromSensorNode();
     ldrData = analogRead(LDR_PIN);
@@ -142,25 +162,40 @@ void loop() {
 
     Serial.println("============= Lastest Attendance =============");
     // read data from firebase to esp32
-    if(Firebase.RTDB.getJSON(&fbdo, "/attendance/")){
+    if(Firebase.RTDB.getJSON(&fbdo, "/attendance")){
       FirebaseJson json = fbdo.to<FirebaseJson>();
       FirebaseJsonData jsonData;
       String key, value;
       String student_id;
       bool is_late;
       int type;
+      Serial.println("Debug: " + String((int)json.iteratorBegin()));
       json.iteratorGet((int)json.iteratorBegin() - 2, type, key, value);
       student_id = value;
       json.iteratorGet((int)json.iteratorBegin() - 3, type, key, value);
       is_late = (value == "false") ? false : true;
-
-      Serial.println("Student ID: " + student_id);
-      Serial.println("Late: " + value);
-
       // write to LCD
       lcd.clear();
       lcd.setCursor(0,0);
       lcd.print(student_id);
+
+      Serial.println("Student ID: " + student_id);
+      Serial.println("Late: " + value);
+
+      // Serial.print("Test studnet id: ");
+      // Serial.println(student_id);
+
+      // change RGB led status
+      if(is_late){
+        //digitalWrite(RED_PIN, HIGH);  // Turn on red
+        digitalWrite(GREEN_PIN, LOW); // Turn off green
+      }else if(!is_late){
+        digitalWrite(RED_PIN, LOW);   // Turn off red
+        //digitalWrite(GREEN_PIN, HIGH);// Turn on green
+      }
+
+    } else {
+      Serial.println("HOIYAH");
     }
     Serial.println("==============================================\n");
 
