@@ -14,8 +14,8 @@
 #define GREEN_PIN 18
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-#define FIREBASE_API_KEY "AIzaSyAKPSmr1CdJpGhxSKOqkdeeQqbJJkvq1JY"
-#define DB_URL "https://embeddedproject-16af6-default-rtdb.asia-southeast1.firebasedatabase.app/"
+#define FIREBASE_API_KEY ""
+#define DB_URL ""
 
 FirebaseData fbdo;
 FirebaseAuth auth;
@@ -122,13 +122,11 @@ void setup() {
   delay(500);
 
   int wifi_optiion = 1;
-  String Wifi_SSIDs[2] = {"wrwwmt", "pcyn"};
-  String Wifi_Pass[2] = {"1594873H", "punch514114"};
+  String Wifi_SSIDs[2] = {"", ""};
+  String Wifi_Pass[2] = {"", ""};
 
   String WIFI_SSID = Wifi_SSIDs[wifi_optiion];
   String WIFI_PASSWORD = Wifi_Pass[wifi_optiion];
-  // String WIFI_SSID = "hrnph";
-  // String WIFI_PASSWORD = "00000000";
 
   // wifi connection
   Serial.print("Connecting to wifi..");
@@ -239,7 +237,7 @@ void loop() {
       }
 
     } else {
-      Serial.println("HOIYAH");
+      Serial.println("Error");
     }
     Serial.println("==============================================\n");
 
