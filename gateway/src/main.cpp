@@ -28,6 +28,7 @@ float prev_ldrData = 0.0;
 float prev_temperature = 0.0;
 bool prev_touchStatus = false;
 int prev_IrData = 1;
+int prev_attendance_size = -1;
 
 float ldrData = 0;
 float temperature = 0.0;
@@ -37,6 +38,9 @@ String tempString;
 String touchString;
 int IrData;
 String IDValue;
+
+bool holding = false;
+TaskHandle_t Holding_State;
 
 void retrieveDataFromSensorNode() {
   if (Serial1.available()) {
@@ -77,6 +81,19 @@ void retrieveDataFromSensorNode() {
 //   Serial1.println(msg);
 // }
 
+void Holding_Tasks(void *pvParameters) {
+  for (;;) {
+    // Serial.println("Running Holding Tasks");
+    if (holding) {
+      delay(3000);
+      holding = false;
+      digitalWrite(RED_PIN, LOW);
+      digitalWrite(GREEN_PIN, LOW);
+    }
+    delay(1000);
+  }
+}
+
 void setup() {
   Serial.begin(9600);
   Serial1.begin(9600, SERIAL_8N1, RX, TX);
@@ -93,6 +110,16 @@ void setup() {
   // Initialize LED to off
   digitalWrite(RED_PIN, LOW);
   digitalWrite(GREEN_PIN, LOW);
+
+  xTaskCreate (
+    Holding_Tasks,
+    "Holding Task",
+    10000,
+    NULL,
+    1,
+    &Holding_State
+  );
+  delay(500);
 
   int wifi_optiion = 1;
   String Wifi_SSIDs[2] = {"wrwwmt", "pcyn"};
@@ -133,12 +160,12 @@ void setup() {
 
 void loop() {
   retrieveDataFromSensorNode();
+  ldrData = analogRead(LDR_PIN);
+  // Serial.println("ldr data: " + String(ldrData));
+  IrData = digitalRead(IR_PIN);
 
-  if(Firebase.ready() && signupOK && (millis() - sendDataPreMillis > 5000 || sendDataPreMillis == 0)){
+  if(!holding && Firebase.ready() && signupOK && (millis() - sendDataPreMillis > 2000 || sendDataPreMillis == 0)){
     sendDataPreMillis = millis();
-    //retrieveDataFromSensorNode();
-    ldrData = analogRead(LDR_PIN);
-    IrData = digitalRead(IR_PIN);
 
     // IR
     Serial.println("======= Firebase sensors update status =======");
@@ -162,6 +189,13 @@ void loop() {
     if(prev_touchStatus != touchStatus && Firebase.RTDB.setBool(&fbdo, "/Sensor/Touched", touchStatus)){
       prev_touchStatus = touchStatus;
       Serial.println("Update Touch sensor to: " + String(touchStatus) + " ( " + fbdo.dataType() + " ) ");
+      if (touchStatus) {
+        digitalWrite(RED_PIN, HIGH);
+        digitalWrite(GREEN_PIN, HIGH);
+      } else {
+        digitalWrite(RED_PIN, LOW);
+        digitalWrite(GREEN_PIN, LOW);
+      }
     }
 
     Serial.println("============= Lastest Attendance =============");
@@ -173,29 +207,35 @@ void loop() {
       String student_id;
       bool is_late;
       int type;
-      Serial.println("Debug: " + String((int)json.iteratorBegin()));
-      json.iteratorGet((int)json.iteratorBegin() - 2, type, key, value);
-      student_id = value;
-      json.iteratorGet((int)json.iteratorBegin() - 3, type, key, value);
-      is_late = (value == "false") ? false : true;
-      // write to LCD
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print(student_id);
+      if (prev_attendance_size == -1) {
+        prev_attendance_size = json.iteratorBegin();
+      }
+      if (prev_attendance_size != (int)json.iteratorBegin()) {
+        prev_attendance_size = json.iteratorBegin();
+        json.iteratorGet((int)json.iteratorBegin() - 2, type, key, value);
+        student_id = value;
+        json.iteratorGet((int)json.iteratorBegin() - 3, type, key, value);
+        is_late = (value == "false") ? false : true;
+        // write to LCD
+        lcd.clear();
+        lcd.setCursor(0,0);
+        lcd.print(student_id);
 
-      Serial.println("Student ID: " + student_id);
-      Serial.println("Late: " + value);
+        Serial.println("Student ID: " + student_id);
+        Serial.println("Late: " + value);
 
-      // Serial.print("Test studnet id: ");
-      // Serial.println(student_id);
+        // Serial.print("Test studnet id: ");
+        // Serial.println(student_id);
 
-      // change RGB led status
-      if(is_late){
-        //digitalWrite(RED_PIN, HIGH);  // Turn on red
-        digitalWrite(GREEN_PIN, LOW); // Turn off green
-      }else if(!is_late){
-        digitalWrite(RED_PIN, LOW);   // Turn off red
-        //digitalWrite(GREEN_PIN, HIGH);// Turn on green
+        // change RGB led status
+        if(is_late){
+          digitalWrite(RED_PIN, HIGH);  // Turn on red
+          digitalWrite(GREEN_PIN, LOW); // Turn off green
+        }else if(!is_late){
+          digitalWrite(RED_PIN, LOW);   // Turn off red
+          digitalWrite(GREEN_PIN, HIGH);// Turn on green
+        }
+        holding = true;
       }
 
     } else {
